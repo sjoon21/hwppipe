@@ -53,7 +53,7 @@ def to_graph(doc: dict) -> dict:
         first_at_loc.setdefault(_key(b.get("loc")), b["id"])
         for eq in b.get("equations", []):
             n_eq += 1
-            eid = f"eq-{n_eq:03d}"
+            eid = eq.get("id") or f"eq-{n_eq:03d}"
             node(eid, "Equation", script=eq["script"], latex=eq.get("latex"), caption=eq.get("caption"))
             edge(b["id"], eid, "HAS_EQUATION")
         for m in _NOTE_REF.finditer(b.get("text") or ""):
@@ -110,18 +110,29 @@ def to_graph(doc: dict) -> dict:
     n_hf: dict[str, int] = {}
     for h in doc.get("headers_footers", []):
         n_hf[h["kind"]] = n_hf.get(h["kind"], 0) + 1
-        hid = f"{h['kind']}-{n_hf[h['kind']]:03d}"
+        hid = h.get("id") or f"{h['kind']}-{n_hf[h['kind']]:03d}"
         node(hid, h["kind"].capitalize(), apply=h.get("apply"))
         edge(f"sec-{h['section']}", hid, "HAS_HEADER" if h["kind"] == "header" else "HAS_FOOTER")
         children(h["blocks"], hid)
+    ids = {n["id"] for n in nodes}
+
+    def target(loc: dict) -> str:
+        # 원본 위치의 첫 블록 → 그 위치를 담은 개체(셀·글상자·각주·머리말·캡션의 개체) → 구역 순으로 찾는다
+        if _key(loc) in first_at_loc:
+            return first_at_loc[_key(loc)]
+        owner = (loc.get("in") or "").removesuffix(":caption")
+        if owner in ids:
+            return owner
+        return f"sec-{loc.get('section', 0)}"
+
     for i, c in enumerate(doc.get("hidden_comments", []), 1):
         cid = f"hidden-{i:03d}"
         node(cid, "HiddenComment", text=c["text"], loc=c["loc"])
-        edge(cid, first_at_loc.get(_key(c["loc"]), f"sec-{c['loc'].get('section', 0)}"), "ANNOTATES")
+        edge(cid, target(c["loc"]), "ANNOTATES")
     for m in doc.get("memos", []):
         node(m["id"], "Memo", text=m["text"], author=m.get("author"), created=m.get("created"),
              anchor=m.get("anchor"), loc=m["loc"])
-        edge(m["id"], first_at_loc.get(_key(m["loc"]), f"sec-{m['loc'].get('section', 0)}"), "ANNOTATES")
+        edge(m["id"], target(m["loc"]), "ANNOTATES")
 
     # 각주 참조가 가리키는 각주가 없으면(깨진 문서) 그 참조 엣지만 내지 않는다
     ids = {n["id"] for n in nodes}

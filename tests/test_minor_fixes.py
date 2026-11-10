@@ -39,7 +39,7 @@ def test_report_records_options_and_schema_version(tmp_path):
     r = convert(FIX / "SimpleTable.hwpx", tmp_path / "o", table_format="gfm")
     assert r["options"] == {"table_format": "gfm", "unframe_layout_tables": False}
     dj = json.loads((tmp_path / "o/document.json").read_text(encoding="utf-8"))
-    assert dj["schema_version"] == "1.1"
+    assert dj["schema_version"] == "1.2"
 
 
 def _memo(i):

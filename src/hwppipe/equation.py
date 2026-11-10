@@ -75,9 +75,11 @@ class _Parser:
         if t in ("sqrt", "SQRT"):
             return ("item", rf"\sqrt{{{_inner(self.postfix())}}}")
         if t in ("root", "ROOT"):
+            if self.peek() in ("of", "OF"):
+                raise _Fail("root without degree")
             n = self.postfix()
             if self.peek() not in ("of", "OF"):
-                raise _Fail("root without of")
+                return ("item", rf"\sqrt{{{_inner(n)}}}")  # of가 없으면 제곱근이다(root 5 = √5)
             self.take()
             return ("item", rf"\sqrt[{_inner(n)}]{{{_inner(self.postfix())}}}")
         if t in ACCENTS:
@@ -116,11 +118,33 @@ def _inner(node: tuple[str, str]) -> str:
     return node[1]
 
 
-def to_latex(script: str) -> str | None:
-    p = _Parser(_tokens(script))
+def _balance(toks: list[str]) -> list[str]:
+    """짝 없는 }는 버리고 닫히지 않은 {는 끝에서 닫는다. 한글은 이런 수식도 그대로 그려 준다."""
+    out, depth = [], 0
+    for i, t in enumerate(toks):
+        if i and toks[i - 1] in ("left", "LEFT", "right", "RIGHT"):
+            pass  # LEFT { 의 {는 구분자이지 묶음 괄호가 아니다
+        elif t == "}":
+            if not depth:
+                continue
+            depth -= 1
+        elif t == "{":
+            depth += 1
+        out.append(t)
+    return out + ["}"] * depth
+
+
+def _convert(toks: list[str]) -> str | None:
     try:
-        items = p.seq(set())
+        items = _Parser(toks).seq(set())
     except _Fail:
         return None
-    out = " ".join(x[1] if x[0] == "item" else "{" + x[1] + "}" for x in items)
-    return out or None
+    return " ".join(x[1] if x[0] == "item" else "{" + x[1] + "}" for x in items) or None
+
+
+def to_latex(script: str) -> str | None:
+    toks = _tokens(script)
+    out = _convert(toks)
+    if out is None and (fixed := _balance(toks)) != toks:
+        out = _convert(fixed)
+    return out

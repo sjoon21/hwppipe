@@ -14,7 +14,7 @@ Python에서는 `parse()`가 `document.json`과 같은 dict를 돌려주고, `to
 
 ## document.json
 
-`schema_version`은 `"1.1"`이다. 필드를 추가할 때는 소수점 아래를 올리고, 기존 필드의 뜻을 바꿀 때는 정수 부분을 올린다.
+`schema_version`은 `"1.2"`이다. 필드를 추가할 때는 소수점 아래를 올리고, 기존 필드의 뜻을 바꿀 때는 정수 부분을 올린다. 0.x 버전 동안은 소수점 아래 변경에서도 값의 형식(예: `loc.in`)이 바뀔 수 있으니, 변경 기록을 확인한다.
 
 ### 최상위
 
@@ -23,12 +23,15 @@ Python에서는 `parse()`가 `document.json`과 같은 dict를 돌려주고, `to
 | `source` | `{name, sha256}`: 입력 파일 이름과 해시 |
 | `metadata` | `content.hpf`의 제목·작성자·작성일 등. 문서마다 키가 다르다. |
 | `blocks` | 본문 블록 목록(읽는 순서) |
-| `headers_footers` | 머리말·꼬리말: `{kind: header\|footer, apply: BOTH\|ODD\|EVEN, section, blocks}` |
+| `headers_footers` | 머리말·꼬리말: `{id: header-001\|footer-001, kind: header\|footer, apply: BOTH\|ODD\|EVEN, section, blocks}` |
 | `notes` | 각주·미주: `{id: fn-1\|en-1, kind: footnote\|endnote, blocks}` |
 | `memos` | 한글 메모: `{id, author, created, number, loc, text, anchor}`. `anchor`는 메모가 붙은 본문 글이다. 범위를 알 수 없으면 `null`이다. |
 | `hidden_comments` | 숨은 설명: `{loc, text}` |
 
 ### 블록
+
+**id 규칙.** id는 문서 하나 안에서 겹치지 않는 문자열이다. 같은 입력을 같은 버전으로 변환하면 항상 같은 id가 나온다. 문서를 고치거나 hwppipe 버전이 바뀌면 달라질 수 있다. 번호의 자릿수(`p-0001`, `tbl-001`)는 보장하지 않으므로 id를 잘라 해석하지 말고 통째로 비교한다.
+
 
 모든 블록에는 `type`과 `loc`이 있고, 최상위 블록에는 `heading_path`(상위부터 나열한 속한 제목 목록. 제목 블록은 자기 자신도 포함)가 있다. `page_break`를 뺀 모든 블록에는 문서 안에서 겹치지 않는 `id`가 있다.
 
@@ -42,10 +45,22 @@ Python에서는 `parse()`가 `document.json`과 같은 dict를 돌려주고, `to
 | `textbox` | `box-001` | `blocks`, `caption`, `caption_side` |
 | `page_break` | 없음 | 쪽 나눔 |
 
-- `equations`: `{script, latex, caption?, caption_side?}` 목록이다. `script`는 한컴 수식 원문이고, `latex`는 변환에 실패하면 `null`이다.
+- `equations`: `{id, script, latex, caption?, caption_side?}` 목록이다. `id`는 `eq-001` 형식이다. `script`는 한컴 수식 원문이고, `latex`는 변환에 실패하면 `null`이다.
 - `cells`: `{row, col, rowspan, colspan, header, blocks}` 목록이다. 병합으로 가려진 칸은 목록에 없다. 셀의 `blocks`에는 중첩 표가 들어갈 수 있다.
 - `layout`: 모든 셀의 테두리가 보이지 않는 표면 `true`다. 레이아웃용 틀일 가능성이 높다는 표시이며, 구조는 그대로 둔다.
-- `loc`: `{section, para, in?}`. `in`은 블록이 들어 있는 곳이다. 예: `tbl-001[0,2]`(표의 0행 2열), `box-003`, `fn-1`, `caption`, `memo`.
+- `loc`: `{section, para, in?}`. `in`은 블록이 들어 있는 곳이다. 예: `tbl-001[0,2]`(표의 0행 2열), `box-003`, `fn-1`, `header-001`, `tbl-001:caption`(표 tbl-001의 캡션), `memo`, `hidden`.
+
+### 원문이 hp:t 밖에 있는 글자
+
+| 요소 | `text`에 들어가는 형태 |
+|------|----------------------|
+| 글자 겹치기 | 겹친 글자를 순서대로(`composeText`) |
+| 덧말 | `본말(덧말)` |
+| 체크 상자, 라디오 단추 | `☑ 이름`/`☐ 이름`, `◉ 이름`/`○ 이름`(선택 여부) |
+| 명령 단추 | `[이름]` |
+| 입력란, 콤보·목록 상자 | 입력값·선택값. 암호 입력란(`passwordChar`가 비어 있지 않거나 없음)은 값을 내보내지 않고 `losses`에 `password_field`로 기록한다 |
+
+표시 기호와 괄호는 hwppipe가 붙인 것이라 `chars_source`·`chars_emitted`에 세지 않는다. 메모의 붙은 글(`anchor`)에는 이 기호도 본문과 똑같이 들어간다.
 
 ## graph.json
 
@@ -84,7 +99,7 @@ Python에서는 `parse()`가 `document.json`과 같은 dict를 돌려주고, `to
 | `REFERS_TO` | 블록 → Footnote·Endnote | 본문의 각주 참조 |
 | `HAS_NOTE` | Document → Footnote·Endnote | 각주 정의 |
 | `HAS_HEADER`, `HAS_FOOTER` | Section → Header·Footer | 머리말·꼬리말 |
-| `ANNOTATES` | Memo·HiddenComment → 블록 | 메모가 달린 문단. 그 위치에 블록이 없으면 구역 |
+| `ANNOTATES` | Memo·HiddenComment → 블록 | 메모가 달린 문단. 캡션 안 메모는 캡션이 달린 개체, 그 위치에 블록이 없으면 구역 |
 
 Neo4j(APOC)로 적재하는 예다. 노드 id는 문서 하나 안에서만 고유하므로, 여러 문서를 한 DB에 넣을 때는 `Document`의 `sha256`을 붙여 구분한다.
 
@@ -119,13 +134,13 @@ RETURN count(rel);
 
 | 필드 | 내용 |
 |------|------|
-| `status` | `ok`, `partial`(깨진 구역을 건너뛰었거나, 깨진 `header.xml` 없이 본문만 변환함), `skipped` |
+| `status` | `ok`, `partial`(깨진 구역을 건너뛰었거나, 깨진 `header.xml` 없이 본문만 변환했거나, 본문 구역을 찾지 못함), `skipped` |
 | `skip_reason` | `hwp5`, `not_zip`, `not_hwpx`, `encrypted`, `broken_package`(`content.hpf`·`manifest.xml`이 깨짐), `limit: …`(압축 해제 크기·항목 수 한도 초과) |
 | `options` | 변환에 쓴 `table_format`, `unframe_layout_tables` |
 | `counts` | 표·병합 셀·그림·수식·각주·미주·메모·제목 개수와 `chars_source`, `chars_emitted` |
 | `losses` | 출력에 담지 못한 요소: `{kind, count, chars, locs}` |
 | `warnings` | 변경 추적 구간 제외, 짝 없는 메모 등 |
 
-`chars_source`는 원본 글자 수(공백 제외), `chars_emitted`는 출력한 글자 수다. 변환된 문서(`ok`, `partial`)에서는 항상 `chars_source == chars_emitted + Σ losses[].chars`가 성립한다. 이 식으로 글자를 조용히 잃지 않았는지 검사할 수 있다.
+`chars_source`는 원본 글자 수(공백 포함, 공백뿐인 문단 제외), `chars_emitted`는 출력한 글자 수다. 변환된 문서(`ok`, `partial`)에서는 항상 `chars_source == chars_emitted + Σ losses[].chars`가 성립한다. 이 식으로 글자를 조용히 잃지 않았는지 검사할 수 있다.
 
 폴더를 변환하면 출력 폴더 맨 위에 `report.json` 요약이 하나 더 생긴다: `{documents: [{input, output, status}], unsupported: [.hwp 파일], collisions: [...]}`.

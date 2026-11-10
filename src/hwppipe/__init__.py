@@ -1,5 +1,5 @@
 """HWPpipe: HWPX 문서를 RAG·LLM·지식 그래프용 결과물로 변환한다."""
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .graph import to_graph
 from .package import HwpxError, Skipped

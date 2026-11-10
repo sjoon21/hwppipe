@@ -1,4 +1,5 @@
 """HWPX ZIP 패키지 열기: 입력 판별, manifest·spine·metadata, 안전한 엔트리 읽기."""
+import posixpath
 import re
 import zipfile
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ class Package:
     metadata: dict[str, str]
     _zf: zipfile.ZipFile = field(repr=False, default=None)
     _read_total: int = field(repr=False, default=0)
+    header: str = "Contents/header.xml"  # content.hpf의 header 항목 경로
 
     def read(self, name: str) -> bytes:
         # ZIP 헤더의 크기는 위조될 수 있으므로 실제로 읽은 양으로 한도를 검사한다
@@ -96,13 +98,23 @@ def open_hwpx(path: Path) -> Package:
     return pkg
 
 
+def _resolve(pkg: Package, href: str) -> str:
+    """한글은 href를 패키지 루트 기준(Contents/section0.xml)으로 쓰지만, OPF 규칙대로 content.hpf 기준(section0.xml)인 파일도 있다."""
+    if not href:
+        return href
+    for cand in (posixpath.normpath(posixpath.join("Contents", href)), posixpath.normpath(href).lstrip("/")):
+        if pkg.has(cand):  # OPF 규칙(content.hpf 기준)을 먼저, 한글 관례(패키지 루트 기준)를 다음에 본다
+            return cand
+    return href
+
+
 def _read_content(pkg: Package) -> None:
     if not pkg.has("Contents/content.hpf"):
         raise Skipped("not_hwpx")
     root = parse(pkg.read("Contents/content.hpf"))
     hrefs: dict[str, str] = {}
     for item in root.iterfind(f".//{q('opf', 'manifest')}/{q('opf', 'item')}"):
-        iid, href = item.get("id", ""), item.get("href", "")
+        iid, href = item.get("id", ""), _resolve(pkg, item.get("href", ""))
         hrefs[iid] = href
         if href.startswith("BinData/") or item.get("isEmbeded") is not None:
             pkg.bins[iid] = BinItem(iid, href, item.get("media-type", ""), item.get("isEmbeded", "1") != "0")
@@ -112,6 +124,8 @@ def _read_content(pkg: Package) -> None:
         sections = sorted((h for h in hrefs.values() if _SECTION_RE.search(h)),
                           key=lambda h: int(_SECTION_RE.search(h).group(1)))
     pkg.sections = sections
+    if "header" in hrefs and pkg.has(hrefs["header"]):
+        pkg.header = hrefs["header"]
     md = root.find(q("opf", "metadata"))
     if md is not None:
         title = md.findtext(q("opf", "title"))

@@ -43,8 +43,8 @@ def test_invariants(doc, tmp_path):
         pytest.skip(r["skip_reason"])
     out = tmp_path / "a"
     dj = json.loads((out / "document.json").read_text(encoding="utf-8"))
-    for t in iter_tables(dj["blocks"]):
-        assert check_grid(t) == [], t["id"]
+    for t in iter_tables(dj["blocks"]):  # 격자가 깨진 표(손상 문서)는 숨기지 않고 경고로 알려야 한다
+        assert not check_grid(t) or any(w.startswith(t["id"] + ":") for w in r["warnings"]), t["id"]
     figs = json.loads((out / "figures.json").read_text(encoding="utf-8"))
     for f in figs:
         if f["file"]:

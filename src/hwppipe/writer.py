@@ -23,7 +23,8 @@ def _iter(blocks):
 
 
 # 1.1: 블록 id, memos[].anchor, tables[].layout, equations[].caption 추가(1과 하위 호환)
-SCHEMA_VERSION = "1.1"
+# 1.2: equations[].id, headers_footers[].id 추가. 캡션·머리말 블록의 loc.in에 개체 id를 씀
+SCHEMA_VERSION = "1.2"
 _ID_PREFIX = {"paragraph": "p", "heading": "h", "list_item": "li"}
 
 
@@ -79,15 +80,17 @@ def _dump(obj) -> str:
 
 def _build(pkg: Package, src: Path) -> tuple[dict, list[dict], dict[str, bytes], dict]:
     try:
-        header, header_error = parse_header(pkg.read("Contents/header.xml")), None
+        header, header_error = parse_header(pkg.read(pkg.header)), None
     except HwpxError:
         raise
     except Exception as e:  # 글자 모양·번호 정의를 잃어도 본문 글은 살린다(제목 판정과 번호만 약해진다)
-        header, header_error = Header(), f"Contents/header.xml: {type(e).__name__}: {e}"
+        header, header_error = Header(), f"{pkg.header}: {type(e).__name__}: {e}"
     ctx = Ctx(pkg, header)
-    sections, partial = [], header_error is not None
+    sections, partial = [], header_error is not None or not pkg.sections
     if header_error:
         ctx.warnings.append(header_error)
+    if not pkg.sections:
+        ctx.warnings.append("본문 구역(Contents/section*.xml)을 찾지 못함")
     for i, name in enumerate(pkg.sections):
         m = ctx.mark()
         try:

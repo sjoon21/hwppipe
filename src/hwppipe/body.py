@@ -9,7 +9,7 @@ from .header import Header
 from .numbering import format_number
 from .package import Package
 from .table import parse_caption, parse_table
-from .xml import children, local, parse, q
+from .xml import children, local, parse_counted, q
 
 # 조판 정보나 마커일 뿐 내용이 없는 요소. 손실로 세지 않는다.
 IGNORED = {
@@ -81,6 +81,7 @@ class ParaState:
     objects: list[dict] = field(default_factory=list)
     equations: list[dict] = field(default_factory=list)
     run_chars: dict[str, int] = field(default_factory=dict)
+    char_pr: str = "0"  # 지금 읽는 run의 글자 모양(속성에서 읽은 글자를 어느 모양으로 셀지)
 
 
 # run 자식 요소의 처리기: local name → fn(el, ctx, state). Task 4 이후 처리기가 여기에 등록된다.
@@ -228,7 +229,7 @@ def _guarded(handler: Callable, el, ctx: Ctx, state: ParaState) -> None:
 
 
 def _run(run, ctx: Ctx, state: ParaState) -> None:
-    char_pr = run.get("charPrIDRef", "0")
+    char_pr = state.char_pr = run.get("charPrIDRef", "0")
     for c in children(run):
         name = local(c)
         if name == "t":
@@ -285,6 +286,8 @@ _SIZE_RE = re.compile(r"가로\s*(\d+)\s*pixel,\s*세로\s*(\d+)\s*pixel")
 def _picture(el, ctx: Ctx, state: ParaState) -> None:
     img = next(el.iter(q("hc", "img")), None)
     bid = img.get("binaryItemIDRef") if img is not None else None
+    if not bid and el.find(q("hp", "caption")) is None and not _NAME_RE.search(el.findtext(q("hp", "shapeComment")) or ""):
+        return  # 그림을 넣지 않은 빈 그림 틀(결재 문서의 직인 자리 등)은 잃은 내용이 없다. 원본 그림 이름이 남아 있으면 잃은 것이다
     item = ctx.pkg.bins.get(bid or "")
     if item is None:
         ctx.loss("missing_binary", state.loc)
@@ -292,9 +295,10 @@ def _picture(el, ctx: Ctx, state: ParaState) -> None:
         ctx.loss("link_picture", state.loc)
     comment = el.findtext(q("hp", "shapeComment")) or ""
     name, size = _NAME_RE.search(comment), _SIZE_RE.search(comment)
-    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs)
+    fid = ctx.new_id("fig")
+    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs, fid)
     state.objects.append({
-        "type": "figure", "id": ctx.new_id("fig"), "binary_id": bid, "caption": caption, "caption_side": side,
+        "type": "figure", "id": fid, "binary_id": bid, "caption": caption, "caption_side": side,
         "original_name": name.group(1).strip() if name else None,
         "pixel_size": [int(size.group(1)), int(size.group(2))] if size else None,
         "loc": dict(state.loc),
@@ -315,10 +319,10 @@ def _container(el, ctx: Ctx, state: ParaState) -> None:
 
 def _shape(el, ctx: Ctx, state: ParaState) -> None:
     sub = el.find(f"{q('hp', 'drawText')}/{q('hp', 'subList')}")
-    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs)
-    if sub is None and caption is None:
+    if sub is None and el.find(q("hp", "caption")) is None:
         return  # 글자도 캡션도 없는 도형은 내용이 없으므로 손실이 아니다
     bid = ctx.new_id("box")
+    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs, bid)
     blocks = walk_paragraphs(sub, ctx, {"section": state.loc["section"], "in": bid}) if sub is not None else []
     if blocks or caption:
         state.objects.append({"type": "textbox", "id": bid, "blocks": blocks, "caption": caption,
@@ -333,8 +337,8 @@ def _equation(el, ctx: Ctx, state: ParaState) -> None:
         state.parts.append(f"`{script}`")
     else:
         state.parts.append(f"${latex}$")
-    eq = {"script": script, "latex": latex}
-    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs)
+    eq = {"id": ctx.new_id("eq"), "script": script, "latex": latex}
+    caption, side = parse_caption(el, ctx, state.loc, walk_paragraphs, eq["id"])
     if caption:
         eq.update(caption=caption, caption_side=side)
     state.equations.append(eq)
@@ -356,8 +360,9 @@ def _note(kind: str) -> Callable:
 
 def _header_footer(kind: str) -> Callable:
     def handle(el, ctx: Ctx, state: ParaState) -> None:
-        ctx.headers_footers.append({"kind": kind, "apply": el.get("applyPageType", "BOTH"),
-                                    "section": ctx.section, "blocks": _sub_blocks(el, ctx, kind)})
+        hid = ctx.new_id(kind)
+        ctx.headers_footers.append({"id": hid, "kind": kind, "apply": el.get("applyPageType", "BOTH"),
+                                    "section": ctx.section, "blocks": _sub_blocks(el, ctx, hid)})
     return handle
 
 
@@ -382,6 +387,61 @@ def _textart(el, ctx: Ctx, state: ParaState) -> None:
 
 
 HANDLERS["textart"] = _textart
+
+
+def _attr_text(ctx: Ctx, state: ParaState, s: str) -> None:
+    """hp:t가 아닌 곳(속성·전용 요소)에 든 원문 글자를 본문에 넣고 원본·출력 글자 수에 함께 센다."""
+    if s:
+        ctx.chars_source += len(s)
+        ctx.chars_emitted += len(s)
+        state.run_chars[state.char_pr] = state.run_chars.get(state.char_pr, 0) + len(s)  # 빈 문단 판정·제목 추정에 반영
+        _put(ctx, state, s)
+
+
+def _compose(el, ctx: Ctx, state: ParaState) -> None:
+    _attr_text(ctx, state, el.get("composeText", ""))  # 글자 겹치기: 겹친 글자들을 순서대로 쓴다
+
+
+def _dutmal(el, ctx: Ctx, state: ParaState) -> None:
+    # 덧말: 본말(덧말). 괄호는 hwppipe가 붙인 것이라 글자 수에 세지 않는다
+    _attr_text(ctx, state, el.findtext(q("hp", "mainText")) or "")
+    sub = el.findtext(q("hp", "subText")) or ""
+    if sub:
+        _put(ctx, state, "(")
+        _attr_text(ctx, state, sub)
+        _put(ctx, state, ")")
+
+
+_CHECK_MARKS = {"checkBtn": ("☑", "☐"), "radioBtn": ("◉", "○")}
+
+
+def _form_control(el, ctx: Ctx, state: ParaState) -> None:
+    # 채운 양식의 선택 여부·입력값은 내용이다. 표시 기호와 괄호는 글자 수에 세지 않는다.
+    kind = local(el)
+    if kind in _CHECK_MARKS:
+        _put(ctx, state, _CHECK_MARKS[kind][0 if el.get("value") == "CHECKED" else 1] + " ")
+        _attr_text(ctx, state, el.get("caption", ""))
+    elif kind == "btn":
+        _put(ctx, state, "[")
+        _attr_text(ctx, state, el.get("caption", ""))
+        _put(ctx, state, "]")
+    elif kind == "edit":
+        value = el.findtext(q("hp", "text")) or ""
+        if el.get("passwordChar", "*"):  # 암호 문자가 있으면(스키마 기본값 "*") 암호 입력란이라 값을 내보내지 않는다
+            if value:
+                ctx.loss("password_field", state.loc, len(value))
+        else:
+            _attr_text(ctx, state, value)
+    else:  # comboBox, listBox
+        _attr_text(ctx, state, el.get("selectedValue", ""))
+
+
+HANDLERS["compose"] = _compose
+HANDLERS["dutmal"] = _dutmal
+for _n in ("checkBtn", "radioBtn", "btn", "edit", "comboBox", "listBox"):
+    HANDLERS[_n] = _form_control
+for _n, _ch in _INLINE_CHARS.items():  # hp:t 밖(run 바로 아래)에 놓인 탭·줄바꿈
+    HANDLERS[_n] = lambda el, ctx, state, ch=_ch: _put(ctx, state, ch)
 HANDLERS["pic"] = _picture
 HANDLERS["container"] = _container
 for _n in ("rect", "ellipse", "polygon", "arc", "curve", "connectLine", "line"):
@@ -389,7 +449,9 @@ for _n in ("rect", "ellipse", "polygon", "arc", "curve", "connectLine", "line"):
 
 
 def parse_section(data: bytes, index: int, ctx: Ctx) -> tuple[list[dict], str | None]:
-    root = parse(data)
+    root, fixed = parse_counted(data)
+    if fixed:
+        ctx.warnings.append(f"section{index}: XML에 허용되지 않는 제어 문자 {fixed}개를 고쳐 읽음")
     ctx.section = index
     ctx.deleting = set()
     ctx.open_memos = {}

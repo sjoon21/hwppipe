@@ -1,4 +1,5 @@
 """document.json 형태의 dict를 Markdown으로 만든다. 표는 병합 셀을 살리기 위해 HTML로 쓴다."""
+import re
 from html import escape
 
 _APPLY = {"BOTH": "양쪽", "ODD": "홀수 쪽", "EVEN": "짝수 쪽"}
@@ -115,6 +116,20 @@ def _quote(label: str, text: str) -> str:
     return "\n".join([f"> [{label}] {lines[0]}", *[f"> {x}" for x in lines[1:]]])
 
 
+_RULE = re.compile(r"=+|-+|(?:\*\s*){3,}|(?:_\s*){3,}")
+
+
+def _md_line(line: str) -> str:
+    # 앞 공백 4칸·탭은 코드 블록이, 줄 앞 #은 제목이 되므로 Markdown에서만 바꾼다(document.json은 원문 유지)
+    line = line.lstrip(" \t")
+    # 줄 앞 #(제목), =·- 줄(앞 줄을 제목으로 만듦), ***·___(구분선)은 글자 그대로 보이게 한다
+    return "\\" + line if line.startswith("#") or _RULE.fullmatch(line.rstrip()) else line
+
+
+def _md_text(text: str) -> str:
+    return "\n".join(_md_line(x) for x in text.split("\n"))
+
+
 def _block(b: dict, fmt: str = "html") -> str:
     t = b["type"]
     if t == "heading":
@@ -133,7 +148,7 @@ def _block(b: dict, fmt: str = "html") -> str:
         cap = [b["caption"]] if b.get("caption") else []
         inner = [_plain(b["blocks"], fmt)] if b["blocks"] else []
         return _quote("글상자", "\n".join(cap + inner if b.get("caption_side") == "TOP" else inner + cap))
-    text = b["text"]
+    text = _md_text(b["text"])
     for eq in b.get("equations", []):
         text += "\n<!-- hwpeq: " + eq["script"].replace("--", "- -") + " -->"
         if eq.get("caption"):
@@ -193,10 +208,10 @@ def render(doc: dict, table_format: str = "html", unframe_layout_tables: bool = 
         out.append(_block(b, table_format))
     flush(float("inf"))
     for h in doc.get("hidden_comments", []):
-        out.append(_quote("숨은 설명", h["text"]))
+        out.append(_quote("숨은 설명", _md_text(h["text"])))
     for m in doc.get("memos", []):
         label = " · ".join(x for x in ("메모", m.get("author"), (m.get("created") or "")[:10]) if x)
-        out.append(_quote(label, m["text"] + (f"\n붙은 글: {m['anchor']}" if m.get("anchor") else "")))
+        out.append(_quote(label, _md_text(m["text"]) + (f"\n붙은 글: {m['anchor']}" if m.get("anchor") else "")))
     for n in doc.get("notes", []):
         out.append(f"[^{n['id']}]: " + _indent_rest(_plain(n["blocks"], table_format)))
     return "\n\n".join(out) + "\n"

@@ -7,14 +7,15 @@ from collections.abc import Callable
 from .xml import children, local, q
 
 
-def parse_caption(obj, ctx, loc: dict, walk: Callable) -> tuple[str | None, str | None]:
+def parse_caption(obj, ctx, loc: dict, walk: Callable, owner: str) -> tuple[str | None, str | None]:
+    """캡션 글과 위치. 캡션 문단의 loc.in은 "<개체 id>:caption"이라 어느 개체의 캡션인지 알 수 있다."""
     cap = obj.find(q("hp", "caption"))
     if cap is None:
         return None, None
     sub = cap.find(q("hp", "subList"))
     ctx.aside_depth += 1  # 캡션 글은 메모의 붙은 글이 아니다
     try:
-        blocks = walk(sub, ctx, {**loc, "in": "caption"}) if sub is not None else []
+        blocks = walk(sub, ctx, {**loc, "in": f"{owner}:caption"}) if sub is not None else []
     finally:
         ctx.aside_depth -= 1
     text = "\n".join(b["text"] for b in blocks if "text" in b)
@@ -28,7 +29,7 @@ MAX_GRID_WARNINGS = 5
 
 def parse_table(tbl, ctx, loc: dict, walk: Callable) -> dict:
     tid = ctx.new_id("tbl")
-    caption, side = parse_caption(tbl, ctx, loc, walk)
+    caption, side = parse_caption(tbl, ctx, loc, walk, tid)
     cells, fills = [], []
     for tr in children(tbl):
         if local(tr) != "tr":

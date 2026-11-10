@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="1000" height="440" role="img" aria-labelledby="t d">
+  <title id="t">graph.json 구조 예시</title>
+  <desc id="d">공문 하나를 graph.json으로 바꾼 예. Document가 Section을, Section이 제목 1. 사업 개요를 포함한다. 제목 아래에 문단과 하위 제목 가. 추진 일정이 있고, 하위 제목은 표를, 표는 셀 세 개를 가진다. 문단은 각주 fn-1을 참조하고, 메모 memo-001은 그 문단에 달려 있다. 문단 다음 읽는 순서는 하위 제목이다.</desc>
+  <style>
+    :root { --ink:#e6edf3; --muted:#9198a1; --line:#3d444d; --bg:#0d1117;
+            --doc:#9198a1; --head:#4493f8; --para:#3fb950; --tbl:#f0883e; --note:#a371f7; --memo:#db61a2; }
+    text { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; fill: var(--ink); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .kind { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .main { font-size: 14px; }
+    .elabel { font-size: 11px; font-weight: 600; }
+    .muted { fill: var(--muted); }
+    .n-doc  { stroke: var(--doc);  fill: var(--doc);  }
+    .n-head { stroke: var(--head); fill: var(--head); }
+    .n-para { stroke: var(--para); fill: var(--para); }
+    .n-tbl  { stroke: var(--tbl);  fill: var(--tbl);  }
+    .n-note { stroke: var(--note); fill: var(--note); }
+    .n-memo { stroke: var(--memo); fill: var(--memo); }
+    .box { fill-opacity: .10; stroke-width: 1.5; }
+    .e { fill: none; stroke-width: 1.5; }
+    .e-contain { stroke: var(--muted); }
+    .e-next { stroke: var(--muted); stroke-dasharray: 5 4; }
+    .e-cell { stroke: var(--tbl); }
+    .e-ref { stroke: var(--note); }
+    .e-ann { stroke: var(--memo); }
+  </style>
+  <rect x="0.5" y="0.5" width="999" height="439" rx="12" style="fill: var(--bg); stroke: var(--line)"/>
+  <defs>
+    <marker id="a-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/></marker>
+    <marker id="a-tbl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--tbl)"/></marker>
+    <marker id="a-note" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--note)"/></marker>
+    <marker id="a-memo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--memo)"/></marker>
+  </defs>
+
+  <!-- 엣지 -->
+  <path class="e e-contain" d="M166,210 L214,210" marker-end="url(#a-muted)"/>
+  <path class="e e-contain" d="M366,210 L414,210" marker-end="url(#a-muted)"/>
+  <path class="e e-contain" d="M566,200 C592,200 590,120 614,120" marker-end="url(#a-muted)"/>
+  <path class="e e-contain" d="M566,220 C592,220 590,300 614,300" marker-end="url(#a-muted)"/>
+  <path class="e e-contain" d="M766,300 L814,300" marker-end="url(#a-muted)"/>
+  <path class="e e-next" d="M691,144 L691,274" marker-end="url(#a-muted)"/>
+  <text class="elabel muted" x="699" y="214">NEXT</text>
+  <path class="e e-cell" d="M891,324 L823,358" marker-end="url(#a-tbl)"/>
+  <path class="e e-cell" d="M891,324 L891,358" marker-end="url(#a-tbl)"/>
+  <path class="e e-cell" d="M891,324 L959,358" marker-end="url(#a-tbl)"/>
+  <text class="elabel" x="812" y="346" text-anchor="end" style="fill: var(--tbl)">HAS_CELL</text>
+  <path class="e e-ref" d="M766,108 C790,108 792,54 814,54" marker-end="url(#a-note)"/>
+  <text class="elabel" x="760" y="86" text-anchor="end" style="fill: var(--note)">REFERS_TO</text>
+  <path class="e e-ann" d="M566,54 C640,54 691,58 691,94" marker-end="url(#a-memo)"/>
+  <text class="elabel" x="574" y="44" style="fill: var(--memo)">ANNOTATES</text>
+
+  <!-- 노드 -->
+  <g class="n-doc"><rect class="box" x="16" y="186" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="28" y="204" style="fill: var(--doc)">Document</text>
+  <text class="main" x="28" y="224">공문.hwpx</text>
+
+  <g class="n-doc"><rect class="box" x="216" y="186" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="228" y="204" style="fill: var(--doc)">Section</text>
+  <text class="main mono" x="228" y="224">sec-0</text>
+
+  <g class="n-head"><rect class="box" x="416" y="186" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="428" y="204" style="fill: var(--head)">Heading · level 1</text>
+  <text class="main" x="428" y="224">1. 사업 개요</text>
+
+  <g class="n-memo"><rect class="box" x="416" y="30" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="428" y="48" style="fill: var(--memo)">Memo · 검토자</text>
+  <text class="main" x="428" y="68">일정 확인 필요</text>
+
+  <g class="n-para"><rect class="box" x="616" y="96" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="628" y="114" style="fill: var(--para)">Paragraph</text>
+  <text class="main" x="628" y="134">본 사업은 …[^fn-1]</text>
+
+  <g class="n-head"><rect class="box" x="616" y="276" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="628" y="294" style="fill: var(--head)">Heading · level 2</text>
+  <text class="main" x="628" y="314">가. 추진 일정</text>
+
+  <g class="n-note"><rect class="box" x="816" y="30" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="828" y="48" style="fill: var(--note)">Footnote</text>
+  <text class="main" x="828" y="68">fn-1 · 근거 법령</text>
+
+  <g class="n-tbl"><rect class="box" x="816" y="276" width="150" height="48" rx="8"/></g>
+  <text class="kind" x="828" y="294" style="fill: var(--tbl)">Table · 2×2</text>
+  <text class="main mono" x="828" y="314">tbl-001</text>
+
+  <g class="n-tbl"><rect class="box" x="793" y="360" width="60" height="36" rx="6"/></g>
+  <text class="mono" x="823" y="383" font-size="12" text-anchor="middle">[0,0]</text>
+  <g class="n-tbl"><rect class="box" x="861" y="360" width="60" height="36" rx="6"/></g>
+  <text class="mono" x="891" y="383" font-size="12" text-anchor="middle">[1,0]</text>
+  <g class="n-tbl"><rect class="box" x="929" y="360" width="60" height="36" rx="6"/></g>
+  <text class="mono" x="959" y="383" font-size="12" text-anchor="middle">[1,1]</text>
+
+  <!-- 범례 -->
+  <path class="e e-contain" d="M16,420 L52,420" marker-end="url(#a-muted)"/>
+  <text class="muted" x="60" y="424" font-size="12">CONTAINS·HAS_SECTION: 포함(제목 아래 블록은 그 제목에)</text>
+  <path class="e e-next" d="M392,420 L428,420" marker-end="url(#a-muted)"/>
+  <text class="muted" x="436" y="424" font-size="12">NEXT: 읽는 순서</text>
+  <text class="muted" x="560" y="424" font-size="12">주요 노드·엣지만 표시. 노드 id = document.json 블록 id</text>
+</svg>

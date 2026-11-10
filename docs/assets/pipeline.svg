@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 372" width="980" height="372" role="img" aria-labelledby="t d">
+  <title id="t">hwppipe 변환 흐름</title>
+  <desc id="d">HWPX 파일을 hwppipe가 안전하게 열고 본문·표·개체와 제목을 해석해 document.md, document.json, graph.json, figures, report.json 다섯 가지 결과물로 내보낸다. 각 결과물은 임베딩, 청킹, 그래프 DB, 원본 그림 보존, 품질 검사에 쓰인다.</desc>
+  <style>
+    :root { --ink:#1f2328; --muted:#59636e; --line:#d0d7de; --panel:#f6f8fa; --accent:#0969da; --card:#ffffff; --bg:#ffffff; }
+    text { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; fill: var(--ink); }
+    .muted { fill: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .panel { fill: var(--panel); stroke: var(--line); }
+    .card { fill: var(--card); stroke: var(--line); }
+    .core { fill: var(--panel); stroke: var(--accent); stroke-width: 1.5; }
+    .wire { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+    .step { fill: var(--accent); }
+    .stepnum { fill: #ffffff; font-weight: 700; }
+    .h { font-weight: 700; }
+  </style>
+  <rect x="0.5" y="0.5" width="979" height="371" rx="12" style="fill: var(--bg); stroke: var(--line)"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+    </marker>
+  </defs>
+
+  <!-- 입력 -->
+  <rect class="panel" x="16" y="106" width="176" height="160" rx="10"/>
+  <text class="h" x="32" y="136" font-size="16">공문.hwpx</text>
+  <text class="muted" x="32" y="156" font-size="12">HWPX(OWPML) 패키지</text>
+  <text class="mono muted" x="32" y="186" font-size="12">Contents/section*.xml</text>
+  <text class="mono muted" x="32" y="206" font-size="12">Contents/header.xml</text>
+  <text class="mono muted" x="32" y="226" font-size="12">Contents/content.hpf</text>
+  <text class="mono muted" x="32" y="246" font-size="12">BinData/*</text>
+
+  <path class="wire" d="M192,186 L232,186" marker-end="url(#arrow)"/>
+
+  <!-- 처리 -->
+  <rect class="core" x="238" y="40" width="268" height="292" rx="12"/>
+  <text class="h" x="258" y="72" font-size="18">hwppipe</text>
+  <text class="muted" x="258" y="92" font-size="12">순수 Python · 의존성 lxml 하나</text>
+
+  <circle class="step" cx="268" cy="126" r="11"/><text class="stepnum" x="268" y="130.5" font-size="12" text-anchor="middle">1</text>
+  <text x="288" y="124" font-size="14">안전하게 열기</text>
+  <text class="muted" x="288" y="142" font-size="12">압축 폭탄·XXE·경로 조작 차단</text>
+
+  <circle class="step" cx="268" cy="182" r="11"/><text class="stepnum" x="268" y="186.5" font-size="12" text-anchor="middle">2</text>
+  <text x="288" y="180" font-size="14">본문·개체 해석</text>
+  <text class="muted" x="288" y="198" font-size="12">병합 셀·중첩 표·수식·메모</text>
+
+  <circle class="step" cx="268" cy="238" r="11"/><text class="stepnum" x="268" y="242.5" font-size="12" text-anchor="middle">3</text>
+  <text x="288" y="236" font-size="14">구조 판정</text>
+  <text class="muted" x="288" y="254" font-size="12">개요 제목 또는 번호 패턴 추정</text>
+
+  <circle class="step" cx="268" cy="294" r="11"/><text class="stepnum" x="268" y="298.5" font-size="12" text-anchor="middle">4</text>
+  <text x="288" y="292" font-size="14">손실까지 집계</text>
+  <text class="muted" x="288" y="310" font-size="12">원본 글자 = 출력 + 손실</text>
+
+  <!-- 출력 연결선 -->
+  <path class="wire" d="M506,186 C540,186 540,54 576,54" marker-end="url(#arrow)"/>
+  <path class="wire" d="M506,186 C540,186 540,120 576,120" marker-end="url(#arrow)"/>
+  <path class="wire" d="M506,186 L576,186" marker-end="url(#arrow)"/>
+  <path class="wire" d="M506,186 C540,186 540,252 576,252" marker-end="url(#arrow)"/>
+  <path class="wire" d="M506,186 C540,186 540,318 576,318" marker-end="url(#arrow)"/>
+
+  <!-- 출력 -->
+  <rect class="card" x="582" y="32" width="164" height="44" rx="8"/>
+  <text class="mono h" x="598" y="59" font-size="14">document.md</text>
+  <rect class="card" x="582" y="98" width="164" height="44" rx="8"/>
+  <text class="mono h" x="598" y="125" font-size="14">document.json</text>
+  <rect class="card" x="582" y="164" width="164" height="44" rx="8" style="stroke: var(--accent); stroke-width: 1.5"/>
+  <text class="mono h" x="598" y="191" font-size="14">graph.json</text>
+  <rect class="card" x="582" y="230" width="164" height="44" rx="8"/>
+  <text class="mono h" x="598" y="257" font-size="14">figures/</text>
+  <rect class="card" x="582" y="296" width="164" height="44" rx="8"/>
+  <text class="mono h" x="598" y="323" font-size="14">report.json</text>
+
+  <!-- 쓰임 -->
+  <text x="768" y="50" font-size="14">임베딩 · LLM 입력</text>
+  <text class="muted" x="768" y="68" font-size="12">표는 HTML 또는 GFM</text>
+  <text x="768" y="116" font-size="14">청킹 · 메타데이터 필터</text>
+  <text class="muted" x="768" y="134" font-size="12">블록 id · heading_path · loc</text>
+  <text x="768" y="182" font-size="14">온톨로지 · 그래프 DB</text>
+  <text class="muted" x="768" y="200" font-size="12">노드·엣지 그대로 적재</text>
+  <text x="768" y="248" font-size="14">원본 그림 보존</text>
+  <text class="muted" x="768" y="266" font-size="12">바이트 동일 · sha256</text>
+  <text x="768" y="314" font-size="14">품질 검사</text>
+  <text class="muted" x="768" y="332" font-size="12">손실 종류·위치·경고</text>
+</svg>
