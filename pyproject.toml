@@ -1,0 +1,49 @@
+[project]
+name = "hwppipe"
+dynamic = ["version"]
+description = "HWPX(한글 문서)를 RAG·지식 그래프용 Markdown·JSON·그래프·그림 원본으로 변환하는 도구"
+keywords = ["hwpx", "hwp", "hangul", "owpml", "rag", "llm", "markdown", "knowledge-graph", "ontology"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: Korean",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+readme = "README.md"
+license = "MIT AND Apache-2.0"  # 수식 기호표(_eqsymbols.py)는 Apache-2.0
+license-files = ["LICENSE", "LICENSES/*", "THIRD_PARTY_NOTICES.md"]
+requires-python = ">=3.10"
+dependencies = ["lxml>=5"]
+
+[project.urls]
+Homepage = "https://github.com/sjoon21/hwppipe"
+Repository = "https://github.com/sjoon21/hwppipe"
+Issues = "https://github.com/sjoon21/hwppipe/issues"
+Changelog = "https://github.com/sjoon21/hwppipe/blob/main/CHANGELOG.md"
+
+[project.scripts]
+hwppipe = "hwppipe.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/hwppipe/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "scripts", "README.md", "CHANGELOG.md", "LICENSE", "LICENSES", "THIRD_PARTY_NOTICES.md"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hwppipe"]
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+testpaths = ["tests"]
